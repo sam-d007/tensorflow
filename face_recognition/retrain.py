@@ -1347,3 +1347,54 @@ if __name__ == '__main__':
   )
   FLAGS, unparsed = parser.parse_known_args()
   tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
+
+
+
+cap = cv2.VideoCapture(0)
+
+import time
+with detection_graph.as_default():
+    with tf.Session() as sess:
+      # Get handles to input and output tensors
+        ops = tf.get_default_graph().get_operations()
+        all_tensor_names = {output.name for op in ops for output in op.outputs}
+        tensor_dict = {}
+        for key in [
+            'num_detections', 'detection_boxes', 'detection_scores',
+            'detection_classes', 'detection_masks'
+        ]:
+            tensor_name = key + ':0'
+            if tensor_name in all_tensor_names:
+                tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
+                tensor_name)
+        start = time.time()    
+
+        while True:
+            ret, image_np = cap.read()
+
+            # the array based representation of the image will be used later in order to prepare the
+            # result image with boxes and labels on it.
+            # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
+            image_np_expanded = np.expand_dims(image_np, axis=0)
+            # Actual detection.
+            output_dict = run_inference_for_single_image(image_np_expanded, detection_graph)
+            # Visualization of the results of a detection.
+            vis_util.visualize_boxes_and_labels_on_image_array(
+                image_np,
+                output_dict['detection_boxes'],
+                output_dict['detection_classes'],
+                output_dict['detection_scores'],
+                category_index,
+                instance_masks=output_dict.get('detection_masks'),
+                use_normalized_coordinates=True,
+                line_thickness=8)
+#                   vid.append(image_np)  
+            cv2.imshow('obj',cv2.resize(image_np,(800,600)))
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                cap.release()
+                cv2.destroyAllWindows()
+                break
+
+
+cap.release()
+cv2.destroyAllWindows()  
